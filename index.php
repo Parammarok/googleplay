@@ -13,7 +13,7 @@ if(!is_dir($directoryName)){
 }
 
 //The name of the directory that we need to create.
-$directoryName = '.cache//googleplay';
+$directoryName = '.cache/googleplay';
 
 //Check if the directory already exists.
 if(!is_dir($directoryName)){
