@@ -1,5 +1,13 @@
 # Docs
 
+## APK to Java
+
+~~~
+jadx.bat com.google.android.youtube-1528288704.apk
+~~~
+
+https://github.com/skylot/jadx
+
 ## App category
 
 https://github.com/89z/googleplay/tree/4ee083e441c3d183c9c1db9da006849630305ba6
@@ -10,7 +18,7 @@ Some apps are specific to region. For example, `air.ITVMobilePlayer` is specifc
 to GB. If you try it from US, details will work, but delivery will fail:
 
 ~~~
-PS C:\> googleplay -a air.ITVMobilePlayer
+> googleplay -a air.ITVMobilePlayer
 Title: ITV Hub: Your TV Player - Watch Live & On Demand
 UploadDate: Dec 9, 2021
 VersionString: 9.19.0
@@ -19,7 +27,7 @@ NumDownloads: 17.429 M
 Size: 35.625 MB
 Offer: 0.00 USD
 
-PS C:\> googleplay -a air.ITVMobilePlayer -v 901900000
+> googleplay -a air.ITVMobilePlayer -v 901900000
 panic: Geo-blocking
 ~~~
 
@@ -34,7 +42,7 @@ Accept-Language: es-ES
 You can change the country [1], and then you get expected result:
 
 ~~~
-PS D:\Desktop> googleplay.exe -a air.ITVMobilePlayer
+> googleplay -a air.ITVMobilePlayer
 Title: ITV Hub: Your TV Player - Watch Live & On Demand
 UploadDate: Dec 9, 2021
 VersionString: 9.19.0
@@ -43,7 +51,7 @@ NumDownloads: 17.429 M
 Size: 35.625 MB
 Offer: 0.00 GBP
 
-PS C:\> googleplay -a air.ITVMobilePlayer -v 901900000
+> googleplay -a air.ITVMobilePlayer -v 901900000
 GET https://play.googleapis.com/download/by-token/download?token=AOTCm0TiBZQdp...
 ~~~
 
@@ -71,15 +79,7 @@ versionCode='80441400' versionName='6.1.14'
 - https://apkmirror.com/apk/google-inc/google-play-store
 - https://github.com/whyorean/GPlayApi/blob/master/src/main/proto/GooglePlay.proto
 
-## How to get TV apps?
-
-https://play.google.com/store/apps/details?id=com.iqiyi.i18n.tv
-
-In general, you can probably just get the regular app instead:
-
-https://play.google.com/store/apps/details?id=com.iqiyi.i18n
-
-## How to install split APK?
+## How to install Android App Bundle?
 
 Bash:
 
@@ -93,6 +93,19 @@ PowerShell:
 adb install-multiple (Get-ChildItem *.apk)
 ~~~
 
+https://developer.android.com/guide/app-bundle/app-bundle-format
+
+## How to install expansion file?
+
+~~~
+adb shell mkdir -p /sdcard/Android/obb/com.PirateBayGames.ZombieDefense2
+
+adb push main.41.com.PirateBayGames.ZombieDefense2.obb `
+/sdcard/Android/obb/com.PirateBayGames.ZombieDefense2/
+~~~
+
+https://developer.android.com/google/play/expansion-files
+
 ## INSTALL\_FAILED\_NO\_MATCHING\_ABIS
 
 This can happen when trying to install ARM app on `x86`. If the APK is
@@ -100,7 +113,8 @@ This can happen when trying to install ARM app on `x86`. If the APK is
 `x86`. If the APK is `arm64-v8a`, then Android 11 (API 30) will work. Also the
 emulator should be `x86_64`.
 
-https://stackoverflow.com/questions/36414219/install-failed-no-matching-abis
+- https://android.stackexchange.com/questions/222094/install-failed
+- https://stackoverflow.com/questions/36414219/install-failed-no-matching-abis
 
 However note that this will still fail in some cases:
 

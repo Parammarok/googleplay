@@ -3,78 +3,113 @@ package main
 import (
    "fmt"
    "github.com/89z/format"
+   "io"
    "net/http"
    "os"
    "time"
    gp "github.com/89z/googleplay"
 )
 
-func doDelivery(head *gp.Header, app string, ver uint64) error {
-   del, err := head.Delivery(app, ver)
+func doHeader(dir, platform string, single bool) (*gp.Header, error) {
+   token, err := gp.OpenToken(dir + "/token.txt")
    if err != nil {
-      return err
+      return nil, err
    }
-   for _, data := range del.Data() {
-      fmt.Println("GET", data.DownloadURL)
-      res, err := http.Get(string(data.DownloadURL))
-      if err != nil {
-         return err
-      }
-      defer res.Body.Close()
-      file, err := os.Create(data.Name(app, ver))
-      if err != nil {
-         return err
-      }
-      defer file.Close()
-      pro := format.NewProgress(res)
-      if _, err := file.ReadFrom(pro); err != nil {
-         return err
-      }
+   device, err := gp.OpenDevice(dir + "/" + platform + ".txt")
+   if err != nil {
+      return nil, err
    }
-   return nil
+   id, err := device.ID()
+   if err != nil {
+      return nil, err
+   }
+   return token.Header(id, single)
 }
 
-func doDevice() error {
-   dev, err := gp.DefaultConfig.Checkin()
+func doDevice(dir, platform string) error {
+   device, err := gp.Phone.Checkin(platform)
    if err != nil {
       return err
    }
    fmt.Printf("Sleeping %v for server to process\n", gp.Sleep)
    time.Sleep(gp.Sleep)
-   cache, err := os.UserCacheDir()
+   file, err := format.Create(dir + "/" + platform + ".txt")
    if err != nil {
       return err
    }
-   return dev.Create(cache, "googleplay/device.json")
+   defer file.Close()
+   if _, err := device.WriteTo(file); err != nil {
+      return err
+   }
+   return nil
 }
 
-func doToken(email, password string) error {
-   tok, err := gp.NewToken(email, password)
+func doToken(dir, email, password string) error {
+   token, err := gp.NewToken(email, password)
    if err != nil {
       return err
    }
-   cache, err := os.UserCacheDir()
+   file, err := format.Create(dir + "/token.txt")
    if err != nil {
       return err
    }
-   return tok.Create(cache, "googleplay/token.json")
+   defer file.Close()
+   if _, err := token.WriteTo(file); err != nil {
+      return err
+   }
+   return nil
 }
 
-func newHeader(single bool) (*gp.Header, error) {
-   cache, err := os.UserCacheDir()
+func doDetails(head *gp.Header, app string, parse bool) error {
+   detail, err := head.Details(app)
    if err != nil {
-      return nil, err
+      return err
    }
-   token, err := gp.OpenToken(cache, "googleplay/token.json")
+   if parse {
+      date, err := detail.Time()
+      if err != nil {
+         return err
+      }
+      detail.UploadDate = date.String()
+   }
+   fmt.Println(detail)
+   return nil
+}
+
+func doDelivery(head *gp.Header, app string, ver uint64) error {
+   download := func(addr, name string) error {
+      fmt.Println("GET", addr)
+      res, err := http.Get(addr)
+      if err != nil {
+         return err
+      }
+      defer res.Body.Close()
+      file, err := os.Create(name)
+      if err != nil {
+         return err
+      }
+      defer file.Close()
+      pro := format.ProgressBytes(file, res.ContentLength)
+      if _, err := io.Copy(pro, res.Body); err != nil {
+         return err
+      }
+      return nil
+   }
+   del, err := head.Delivery(app, ver)
    if err != nil {
-      return nil, err
+      return err
    }
-   device, err := gp.OpenDevice(cache, "googleplay/device.json")
-   if err != nil {
-      return nil, err
+   for _, split := range del.SplitDeliveryData {
+      err := download(split.DownloadURL, del.Split(split.ID))
+      if err != nil {
+         return err
+      }
    }
-   if single {
-      return token.SingleAPK(device)
+   for _, file := range del.AdditionalFile {
+      err := download(file.DownloadURL, del.Additional(file.FileType))
+      if err != nil {
+         return err
+      }
    }
-   return token.Header(device)
+   return download(del.DownloadURL, del.Download())
 }

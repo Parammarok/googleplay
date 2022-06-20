@@ -2,9 +2,11 @@ package main
 
 import (
    "flag"
-   "fmt"
+   "github.com/89z/format"
+   "github.com/89z/googleplay"
+   "os"
+   "path/filepath"
    "strings"
-   gp "github.com/89z/googleplay"
 )
 
 func main() {
@@ -12,68 +14,81 @@ func main() {
    var app string
    flag.StringVar(&app, "a", "", "app")
    // d
+   dir, err := os.UserHomeDir()
+   if err != nil {
+      panic(err)
+   }
+   dir = filepath.Join(dir, "googleplay")
+   flag.StringVar(&dir, "d", dir, "user dir")
+   // date
+   var parse bool
+   flag.BoolVar(&parse, "date", false, "parse date")
+   // device
    var device bool
-   flag.BoolVar(&device, "d", false, "create device")
-   // e
+   flag.BoolVar(&device, "device", false, "create device")
+   // email
    var email string
-   flag.StringVar(&email, "e", "", "email")
+   flag.StringVar(&email, "email", "", "your email")
+   // log
+   var level int
+   flag.IntVar(&level, "log", 0, "log level")
    // p
+   var platformID int64
+   flag.Int64Var(&platformID, "p", 0, googleplay.Platforms.String())
+   // password
    var password string
-   flag.StringVar(&password, "p", "", "password")
+   flag.StringVar(&password, "password", "", "your password")
    // purchase
    var (
       buf strings.Builder
       purchase bool
    )
-   buf.WriteString("Purchase app.")
-   buf.WriteString(" Only needs to be done once per Google account.")
+   buf.WriteString("Purchase app. ")
+   buf.WriteString("Only needs to be done once per Google account.")
    flag.BoolVar(&purchase, "purchase", false, buf.String())
    // s
    var single bool
    flag.BoolVar(&single, "s", false, "single APK")
    // v
    var version uint64
-   flag.Uint64Var(&version, "v", 0, "version")
-   // verbose
-   var verbose bool
-   flag.BoolVar(&verbose, "verbose", false, "dump requests")
+   flag.Uint64Var(&version, "v", 0, "app version")
    flag.Parse()
-   if verbose {
-      gp.LogLevel = 1
-   }
+   googleplay.LogLevel = format.LogLevel(level)
    if email != "" {
-      err := doToken(email, password)
+      err := doToken(dir, email, password)
       if err != nil {
          panic(err)
-      }
-   } else if device {
-      err := doDevice()
-      if err != nil {
-         panic(err)
-      }
-   } else if app != "" {
-      head, err := newHeader(single)
-      if err != nil {
-         panic(err)
-      }
-      if purchase {
-         err := head.Purchase(app)
-         if err != nil {
-            panic(err)
-         }
-      } else if version >= 1 {
-         err := doDelivery(head, app, version)
-         if err != nil {
-            panic(err)
-         }
-      } else {
-         det, err := head.Details(app)
-         if err != nil {
-            panic(err)
-         }
-         fmt.Println(det)
       }
    } else {
-      flag.Usage()
+      platform := googleplay.Platforms[platformID]
+      if device {
+         err := doDevice(dir, platform)
+         if err != nil {
+            panic(err)
+         }
+      } else if app != "" {
+         head, err := doHeader(dir, platform, single)
+         if err != nil {
+            panic(err)
+         }
+         if purchase {
+            err := head.Purchase(app)
+            if err != nil {
+               panic(err)
+            }
+         } else if version >= 1 {
+            err := doDelivery(head, app, version)
+            if err != nil {
+               panic(err)
+            }
+         } else {
+            err := doDetails(head, app, parse)
+            if err != nil {
+               panic(err)
+            }
+         }
+      } else {
+         flag.Usage()
+      }
    }
 }

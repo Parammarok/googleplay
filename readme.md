@@ -7,57 +7,64 @@
 > It's funny, isn't it, we take a day a year to dress up in costume and
 > celebrate fear?
 >
-> [Spooked (The Office) (2011)][1]
+> [Spooked (The Office) (2011)](//youtube.com/watch?v=9Ex4UcLaYNc)
 
 Download APK from Google Play or send API requests
 
-[1]://f002.backblazeb2.com/file/ql8mlh/Spooked+%28The+Office%29.mp4
+## Issues
+
+Since people have repeatedly abused it, I am now requiring payment for all
+issues. Any issue without payment of at least 9 USD will be closed immediately.
+Payment can be made to the PayPal link on this page, or if you need to use
+another method, mention that in the issue text. For business opportunities,
+contact me:
+
+- Email srpen6@gmail.com
+- Discord 89z#4149
 
 ## How to install?
 
-This module works with Windows, macOS or Linux. You can download, build and run
-in less than [one&nbsp;minute][2].
-
-First, [download Go][3] and extract archive. Then [download GooglePlay][4] and
-extract archive. Then navigate to `googleplay-master/cmd/googleplay`, and
-enter:
+This module works with Windows, macOS or Linux. First, [download Go][2] and
+extract archive. Then [download&nbsp;GooglePlay][3] and extract archive. Then
+navigate to `googleplay-master/cmd/googleplay`, and enter:
 
 ~~~
 go build
 ~~~
 
-[2]://f002.backblazeb2.com/file/ql8mlh/googleplay.webm
-[3]://go.dev/dl
-[4]://github.com/89z/googleplay/archive/refs/heads/master.zip
-
+[2]://go.dev/dl
+[3]://github.com/89z/googleplay/archive/refs/heads/master.zip
 
 ## Tool examples
 
-If you are outside the United States, you might need to create an
-[App Password][5]. Create a file containing token (`aas_et`) for future
-requests:
+Before trying these examples, make sure the Google account you are using has
+logged into the Play&nbsp;Store at least once before. Also you need to have
+accepted the Google Play terms and conditions. Create a file containing token
+(`aas_et`) for future requests:
 
 ~~~
-googleplay -e EMAIL -p PASSWORD
+googleplay -email EMAIL -password PASSWORD
 ~~~
 
-Create a file containing `Android_ID` (GSF ID) for future requests:
+Create a file containing `X-DFE-Device-ID` (GSF ID) for future requests:
 
 ~~~
-googleplay -d
+googleplay -device
 ~~~
 
 Get app details:
 
 ~~~
-PS C:\> googleplay -a com.google.android.youtube
+> googleplay -a com.google.android.youtube
 Title: YouTube
-UploadDate: Jan 11, 2022
-VersionString: 17.02.34
-VersionCode: 1527109056
-NumDownloads: 11.124 B
-Size: 39.773 MB
-Offer: 0.00 USD
+Creator: Google LLC
+UploadDate: 2022-05-12
+VersionString: 17.19.34
+VersionCode: 1529337280
+NumDownloads: 11.822 B
+Size: 46.727 MB
+File: APK APK APK APK
+Offer: 0 USD
 ~~~
 
 Purchase app. Only needs to be done once per Google account:
@@ -71,10 +78,8 @@ provided by the previous details command. If APK is split, all pieces will be
 downloaded:
 
 ~~~
-googleplay -a com.google.android.youtube -v 1527109056
+googleplay -a com.google.android.youtube -v 1529337280
 ~~~
-
-[5]://support.google.com/accounts/answer/185833
 
 ## API
 
