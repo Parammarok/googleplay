@@ -6,8 +6,8 @@ import (
    "time"
 )
 
-func TestToken(t *testing.T) {
-   token, err := NewToken(email, password)
+func Test_Auth(t *testing.T) {
+   auth, err := New_Auth(email, password)
    if err != nil {
       t.Fatal(err)
    }
@@ -15,26 +15,20 @@ func TestToken(t *testing.T) {
    if err != nil {
       t.Fatal(err)
    }
-   if err := token.Create(home + "/googleplay/token.txt"); err != nil {
+   if err := auth.Create(home + "/googleplay/auth.txt"); err != nil {
       t.Fatal(err)
    }
 }
 
-func TestHeader(t *testing.T) {
+func Test_Header(t *testing.T) {
    home, err := os.UserHomeDir()
    if err != nil {
       t.Fatal(err)
    }
-   token, err := OpenToken(home + "/googleplay/token.txt")
-   if err != nil {
-      t.Fatal(err)
-   }
+   var head Header
+   head.Open_Auth(home + "/googleplay/auth.txt")
    for i := 0; i < 9; i++ {
-      head, err := token.Header(0, false)
-      if err != nil {
-         t.Fatal(err)
-      }
-      if head.Auth == "" {
+      if head.Auth.Get_Auth() == "" {
          t.Fatalf("%+v", head)
       }
       time.Sleep(time.Second)

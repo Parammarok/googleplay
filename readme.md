@@ -1,26 +1,28 @@
 # GooglePlay
 
-> Fear plays an interesting role in our lives. How dare we let it motivate us?
-> How dare we let it into our decision-making, into our livelihoods, into our
-> relationships?
+> I’m not really sure what the point of this video is but I guess just be
+> generous.
 >
-> It's funny, isn't it, we take a day a year to dress up in costume and
-> celebrate fear?
+> Be kind to people because you never know how much they might need it or how
+> far it’ll go.
 >
-> [Spooked (The Office) (2011)](//youtube.com/watch?v=9Ex4UcLaYNc)
+> [NakeyJakey (2018)](//youtube.com/watch?v=Cr0UYNKmrUs)
 
 Download APK from Google Play or send API requests
 
-## Issues
+## Money
 
-Since people have repeatedly abused it, I am now requiring payment for all
-issues. Any issue without payment of at least 9 USD will be closed immediately.
-Payment can be made to the PayPal link on this page, or if you need to use
-another method, mention that in the issue text. For business opportunities,
-contact me:
+Software is not licensed for commercial use. If you wish to purchase a
+commercial license, or for other business questions, contact me:
 
-- Email srpen6@gmail.com
-- Discord 89z#4149
+- srpen6@gmail.com
+- Discord srpen6#6983
+
+Also, I only provide paid support for issues. Any issue without payment of at
+least 9 USD will be closed immediately. Payment can be made to one of:
+
+- https://github.com/sponsors/89z
+- <https://paypal.com/donate?hosted_button_id=UEJBQQTU3VYDY>
 
 ## How to install?
 
@@ -58,11 +60,11 @@ Get app details:
 > googleplay -a com.google.android.youtube
 Title: YouTube
 Creator: Google LLC
-UploadDate: 2022-05-12
-VersionString: 17.19.34
-VersionCode: 1529337280
-NumDownloads: 11.822 B
-Size: 46.727 MB
+Upload Date: Jul 7, 2022
+Version: 17.27.35
+Version Code: 1530387904
+Num Downloads: 12.18 billion
+Installation Size: 48.51 megabyte
 File: APK APK APK APK
 Offer: 0 USD
 ~~~
@@ -78,7 +80,7 @@ provided by the previous details command. If APK is split, all pieces will be
 downloaded:
 
 ~~~
-googleplay -a com.google.android.youtube -v 1529337280
+googleplay -a com.google.android.youtube -v 1529992640
 ~~~
 
 ## API

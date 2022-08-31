@@ -2,90 +2,79 @@ package main
 
 import (
    "flag"
-   "github.com/89z/format"
-   "github.com/89z/googleplay"
    "os"
-   "path/filepath"
-   "strings"
+   gp "github.com/89z/googleplay"
 )
 
+type flags struct {
+   app string
+   device bool
+   email string
+   password string
+   platform int64
+   purchase bool
+   single bool
+   version uint64
+}
+
 func main() {
+   var f flags
    // a
-   var app string
-   flag.StringVar(&app, "a", "", "app")
-   // d
+   flag.StringVar(&f.app, "a", "", "app")
+   // device
+   flag.BoolVar(&f.device, "device", false, "create device")
+   // email
+   flag.StringVar(&f.email, "email", "", "your email")
+   // p
+   flag.Int64Var(&f.platform, "p", 0, gp.Platforms.String())
+   // password
+   flag.StringVar(&f.password, "password", "", "your password")
+   // purchase
+   flag.BoolVar(&f.purchase, "purchase", false, "purchase app")
+   // s
+   flag.BoolVar(&f.single, "s", false, "single APK")
+   // v
+   flag.Uint64Var(&f.version, "v", 0, "app version")
+   flag.Parse()
    dir, err := os.UserHomeDir()
    if err != nil {
       panic(err)
    }
-   dir = filepath.Join(dir, "googleplay")
-   flag.StringVar(&dir, "d", dir, "user dir")
-   // date
-   var parse bool
-   flag.BoolVar(&parse, "date", false, "parse date")
-   // device
-   var device bool
-   flag.BoolVar(&device, "device", false, "create device")
-   // email
-   var email string
-   flag.StringVar(&email, "email", "", "your email")
-   // log
-   var level int
-   flag.IntVar(&level, "log", 0, "log level")
-   // p
-   var platformID int64
-   flag.Int64Var(&platformID, "p", 0, googleplay.Platforms.String())
-   // password
-   var password string
-   flag.StringVar(&password, "password", "", "your password")
-   // purchase
-   var (
-      buf strings.Builder
-      purchase bool
-   )
-   buf.WriteString("Purchase app. ")
-   buf.WriteString("Only needs to be done once per Google account.")
-   flag.BoolVar(&purchase, "purchase", false, buf.String())
-   // s
-   var single bool
-   flag.BoolVar(&single, "s", false, "single APK")
-   // v
-   var version uint64
-   flag.Uint64Var(&version, "v", 0, "app version")
-   flag.Parse()
-   googleplay.LogLevel = format.LogLevel(level)
-   if email != "" {
-      err := doToken(dir, email, password)
+   dir += "/googleplay"
+   os.Mkdir(dir, os.ModePerm)
+   if f.password != "" {
+      err := f.do_auth(dir)
       if err != nil {
          panic(err)
       }
    } else {
-      platform := googleplay.Platforms[platformID]
-      if device {
-         err := doDevice(dir, platform)
+      platform := gp.Platforms[f.platform]
+      if f.device {
+         err := do_device(dir, platform)
          if err != nil {
             panic(err)
          }
-      } else if app != "" {
-         head, err := doHeader(dir, platform, single)
+      } else if f.app != "" {
+         head, err := f.do_header(dir, platform)
          if err != nil {
             panic(err)
          }
-         if purchase {
-            err := head.Purchase(app)
+         if f.purchase {
+            err := head.Purchase(f.app)
             if err != nil {
                panic(err)
             }
-         } else if version >= 1 {
-            err := doDelivery(head, app, version)
+         } else if f.version >= 1 {
+            err := f.do_delivery(head)
             if err != nil {
                panic(err)
             }
          } else {
-            err := doDetails(head, app, parse)
+            detail, err := f.do_details(head)
             if err != nil {
                panic(err)
             }
+            os.Stdout.Write(detail)
          }
       } else {
          flag.Usage()

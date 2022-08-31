@@ -8,10 +8,6 @@ jadx.bat com.google.android.youtube-1528288704.apk
 
 https://github.com/skylot/jadx
 
-## App category
-
-https://github.com/89z/googleplay/tree/4ee083e441c3d183c9c1db9da006849630305ba6
-
 ## Geo-blocking
 
 Some apps are specific to region. For example, `air.ITVMobilePlayer` is specifc
@@ -66,6 +62,11 @@ aapt dump badging file.apk
 ~~~
 
 or check the `cmd/badging` folder.
+
+## How to get device info?
+
+1. https://play.google.com/store/apps/details?id=ru.andr7e.deviceinfohw
+2. https://play.google.com/store/apps/details?id=flar2.devcheck
 
 ## How to get Protocol Buffer fields?
 

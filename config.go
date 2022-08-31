@@ -2,38 +2,39 @@ package googleplay
 
 import (
    "bytes"
-   "github.com/89z/format"
-   "github.com/89z/format/protobuf"
+   "github.com/89z/rosso/os"
+   "github.com/89z/rosso/protobuf"
    "io"
    "net/http"
-   "os"
-   "path/filepath"
    "strconv"
 )
 
 func (d Device) Create(name string) error {
-   buf, err := d.MarshalBinary()
-   if err != nil {
-      return err
-   }
-   os.Stderr.WriteString("Create " + filepath.FromSlash(name) + "\n")
-   if err := os.MkdirAll(filepath.Dir(name), os.ModePerm); err != nil {
-      return err
-   }
-   return os.WriteFile(name, buf, os.ModePerm)
+   data := d.Marshal()
+   return os.WriteFile(name, data)
 }
 
-func Open_Device(name string) (*Device, error) {
+func (n Native_Platform) String() string {
+   b := []byte("nativePlatform")
+   for key, val := range n {
+      b = append(b, '\n')
+      b = strconv.AppendInt(b, key, 10)
+      b = append(b, ": "...)
+      b = append(b, val...)
+   }
+   return string(b)
+}
+
+func (h *Header) Open_Device(name string) error {
    buf, err := os.ReadFile(name)
    if err != nil {
-      return nil, err
+      return err
    }
-   var dev Device
-   dev.Message = make(protobuf.Message)
-   if err := dev.UnmarshalBinary(buf); err != nil {
-      return nil, err
+   h.Device.Message, err = protobuf.Unmarshal(buf)
+   if err != nil {
+      return err
    }
-   return &dev, nil
+   return nil
 }
 
 type Native_Platform map[int64]string
@@ -45,18 +46,6 @@ var Platforms = Native_Platform{
    1: "armeabi-v7a",
    // com.kakaogames.twodin
    2: "arm64-v8a",
-}
-
-func (n Native_Platform) String() string {
-   var buf []byte
-   buf = append(buf, "nativePlatform"...)
-   for key, val := range n {
-      buf = append(buf, '\n')
-      buf = strconv.AppendInt(buf, key, 10)
-      buf = append(buf, ": "...)
-      buf = append(buf, val...)
-   }
-   return string(buf)
 }
 
 // These can use default values, but they must all be included
@@ -73,6 +62,7 @@ type Config struct {
    Shared_Library []string
    Touch_Screen uint64
 }
+
 var Phone = Config{
    Device_Feature: []string{
       // app.source.getcontact
@@ -171,30 +161,26 @@ func (c Config) Checkin(platform string) (*Device, error) {
          1: protobuf.String(name),
       })
    }
-   in, err := checkin.MarshalBinary()
-   if err != nil {
-      return nil, err
-   }
    req, err := http.NewRequest(
-      "POST", "https://android.googleapis.com/checkin", bytes.NewReader(in),
+      "POST", "https://android.googleapis.com/checkin",
+      bytes.NewReader(checkin.Marshal()),
    )
    if err != nil {
       return nil, err
    }
    req.Header.Set("Content-Type", "application/x-protobuffer")
-   Log_Level.Dump(req)
-   res, err := new(http.Transport).RoundTrip(req)
+   res, err := Client.Do(req)
    if err != nil {
       return nil, err
    }
    defer res.Body.Close()
-   out, err := io.ReadAll(res.Body)
+   buf, err := io.ReadAll(res.Body)
    if err != nil {
       return nil, err
    }
    var dev Device
-   dev.Message = make(protobuf.Message)
-   if err := dev.UnmarshalBinary(out); err != nil {
+   dev.Message, err = protobuf.Unmarshal(buf)
+   if err != nil {
       return nil, err
    }
    return &dev, nil

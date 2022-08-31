@@ -6,27 +6,14 @@ import (
    "testing"
 )
 
-func TestDelivery(t *testing.T) {
+func Test_Delivery(t *testing.T) {
    home, err := os.UserHomeDir()
    if err != nil {
       t.Fatal(err)
    }
-   token, err := OpenToken(home + "/googleplay/token.txt")
-   if err != nil {
-      t.Fatal(err)
-   }
-   device, err := OpenDevice(home + "/googleplay/x86.txt")
-   if err != nil {
-      t.Fatal(err)
-   }
-   id, err := device.ID()
-   if err != nil {
-      t.Fatal(err)
-   }
-   head, err := token.Header(id, false)
-   if err != nil {
-      t.Fatal(err)
-   }
+   var head Header
+   head.Open_Auth(home + "/googleplay/auth.txt")
+   head.Open_Device(home + "/googleplay/x86.bin")
    del, err := head.Delivery("com.google.android.youtube", 1524221376)
    if err != nil {
       t.Fatal(err)

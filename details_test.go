@@ -8,7 +8,7 @@ import (
    "time"
 )
 
-var apps = []appType{
+var apps = []app_type{
    {"2021-12-08 00:00:00 +0000 UTC",0,"com.amctve.amcfullepisodes"},
    {"2022-02-02 00:00:00 +0000 UTC",2,"com.illumix.fnafar"},
    {"2022-02-14 00:00:00 +0000 UTC",0,"org.videolan.vlc"},
@@ -33,55 +33,43 @@ var apps = []appType{
    {"2022-06-14 00:00:00 +0000 UTC",0,"com.pinterest"},
 }
 
-func TestDetails(t *testing.T) {
+func Test_Details(t *testing.T) {
    home, err := os.UserHomeDir()
    if err != nil {
       t.Fatal(err)
    }
-   token, err := OpenToken(home + "/googleplay/token.txt")
-   if err != nil {
-      t.Fatal(err)
-   }
-   head, err := token.Header(0, false)
-   if err != nil {
-      t.Fatal(err)
-   }
+   var head Header
+   head.Open_Auth(home + "/googleplay/auth.txt")
+   head.Auth.Exchange()
    for _, app := range apps {
       platform := Platforms[app.platform]
-      device, err := OpenDevice(home + "/googleplay/" + platform + ".txt")
+      head.Open_Device(home + "/googleplay/" + platform + ".bin")
+      d, err := head.Details(app.id)
       if err != nil {
          t.Fatal(err)
       }
-      head.DeviceID, err = device.ID()
-      if err != nil {
+      if _, err := d.Upload_Date(); err != nil {
          t.Fatal(err)
       }
-      det, err := head.Details(app.id)
-      if err != nil {
+      if _, err := d.Version(); err != nil {
          t.Fatal(err)
       }
-      if det.CurrencyCode == "" {
-         t.Fatal(det)
+      if _, err := d.Version_Code(); err != nil {
+         t.Fatal(err)
       }
-      if det.NumDownloads == 0 {
-         t.Fatal(det)
+      if _, err := d.Title(); err != nil {
+         t.Fatal(err)
       }
-      if det.Size == 0 {
-         t.Fatal(det)
+      if _, err := d.Installation_Size(); err != nil {
+         t.Fatal(err)
       }
-      if det.Title == "" {
-         t.Fatal(det)
+      if _, err := d.Num_Downloads(); err != nil {
+         t.Fatal(err)
       }
-      if det.VersionCode == 0 {
-         t.Fatal(det)
+      if _, err := d.Currency_Code(); err != nil {
+         t.Fatal(err)
       }
-      if det.VersionString == "" {
-         t.Fatal(det)
-      }
-      if det.UploadDate == "" {
-         t.Fatal(det)
-      }
-      date, err := det.Time()
+      date, err := d.Time()
       if err != nil {
          t.Fatal(err)
       }
@@ -91,19 +79,19 @@ func TestDetails(t *testing.T) {
    }
 }
 
-func (a appType) String() string {
-   var b []byte
-   b = append(b, '{')
-   b = strconv.AppendQuote(b, a.date)
-   b = append(b, ',')
-   b = strconv.AppendInt(b, a.platform, 10)
-   b = append(b, ',')
-   b = strconv.AppendQuote(b, a.id)
-   b = append(b, '}')
-   return string(b)
+func (a app_type) String() string {
+   var buf []byte
+   buf = append(buf, '{')
+   buf = strconv.AppendQuote(buf, a.date)
+   buf = append(buf, ',')
+   buf = strconv.AppendInt(buf, a.platform, 10)
+   buf = append(buf, ',')
+   buf = strconv.AppendQuote(buf, a.id)
+   buf = append(buf, '}')
+   return string(buf)
 }
 
-type appType struct {
+type app_type struct {
    date string
    platform int64 // X-DFE-Device-ID
    id string

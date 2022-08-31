@@ -1,48 +1,92 @@
 package googleplay
 
 import (
-   "errors"
-   "github.com/89z/format"
-   "github.com/89z/format/crypto"
-   "github.com/89z/format/net"
-   "net/http"
+   "github.com/89z/rosso/crypto"
+   "github.com/89z/rosso/http"
+   "github.com/89z/rosso/os"
+   "io"
    "net/url"
-   "os"
    "strconv"
    "strings"
    "time"
 )
 
-func (t Token) Create(name string) error {
-   file, err := format.Create(name)
-   if err != nil {
-      return err
+const Sleep = 4 * time.Second
+
+var Client = http.Default_Client
+
+func format_query(vals url.Values) string {
+   var buf strings.Builder
+   for key := range vals {
+      val := vals.Get(key)
+      buf.WriteString(key)
+      buf.WriteByte('=')
+      buf.WriteString(val)
+      buf.WriteByte('\n')
    }
-   defer file.Close()
-   if _, err := t.WriteTo(file); err != nil {
-      return err
-   }
-   return nil
+   return buf.String()
 }
 
-func Open_Token(name string) (*Token, error) {
-   file, err := os.Open(name)
+// this beats "io.Reader", and also "bytes.Fields"
+func parse_query(query string) url.Values {
+   vals := make(url.Values)
+   for _, field := range strings.Fields(query) {
+      key, val, ok := strings.Cut(field, "=")
+      if ok {
+         vals.Add(key, val)
+      }
+   }
+   return vals
+}
+
+type Auth struct {
+   url.Values
+}
+
+// You can also use host "android.clients.google.com", but it also uses
+// TLS fingerprinting.
+func New_Auth(email, password string) (*Auth, error) {
+   body := url.Values{
+      "Email": {email},
+      "Passwd": {password},
+      "client_sig": {""},
+      "droidguard_results": {"!"},
+   }.Encode()
+   req, err := http.NewRequest(
+      "POST", "https://android.googleapis.com/auth", strings.NewReader(body),
+   )
    if err != nil {
       return nil, err
    }
-   defer file.Close()
-   var tok Token
-   tok.Values = net.NewValues()
-   if _, err := tok.ReadFrom(file); err != nil {
+   req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+   hello, err := crypto.Parse_JA3(crypto.Android_API_26)
+   if err != nil {
       return nil, err
    }
-   return &tok, nil
+   tr := crypto.Transport(hello)
+   res, err := Client.Transport(tr).Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer res.Body.Close()
+   query, err := io.ReadAll(res.Body)
+   if err != nil {
+      return nil, err
+   }
+   var auth Auth
+   auth.Values = parse_query(string(query))
+   return &auth, nil
 }
 
-func (t Token) Header(device_ID uint64, single bool) (*Header, error) {
+func (a Auth) Create(name string) error {
+   query := format_query(a.Values)
+   return os.WriteFile(name, []byte(query))
+}
+
+func (a *Auth) Exchange() error {
    // these values take from Android API 28
    body := url.Values{
-      "Token": {t.Token()},
+      "Token": {a.Get_Token()},
       "app": {"com.android.vending"},
       "client_sig": {"38918a453d07199354f8b19af05ec6562ced5788"},
       "service": {"oauth2:https://www.googleapis.com/auth/googleplay"},
@@ -51,128 +95,87 @@ func (t Token) Header(device_ID uint64, single bool) (*Header, error) {
       "POST", "https://android.googleapis.com/auth", strings.NewReader(body),
    )
    if err != nil {
-      return nil, err
+      return err
    }
    req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-   Log_Level.Dump(req)
-   res, err := new(http.Transport).RoundTrip(req)
+   res, err := Client.Do(req)
    if err != nil {
-      return nil, err
+      return err
    }
    defer res.Body.Close()
-   if res.StatusCode != http.StatusOK {
-      return nil, errors.New(res.Status)
+   query, err := io.ReadAll(res.Body)
+   if err != nil {
+      return err
    }
-   var head Header
-   head.SDK = 9
-   head.Device_ID = device_ID
-   if single {
-      head.Version_Code = 8091_9999 // single APK
-   } else {
-      head.Version_Code = 9999_9999
-   }
-   val := net.NewValues()
-   val.ReadFrom(res.Body)
-   head.Auth = val.Get("Auth")
-   return &head, nil
+   a.Values = parse_query(string(query))
+   return nil
 }
 
-const Sleep = 4 * time.Second
+func (a Auth) Get_Auth() string {
+   return a.Get("Auth")
+}
 
-var Log_Level format.Log_Level
+func (a Auth) Get_Token() string {
+   return a.Get("Token")
+}
 
 type Header struct {
-   Device_ID uint64 // X-DFE-Device-ID
-   SDK int64 // User-Agent
-   Version_Code int64 // User-Agent
-   Auth string // Authorization
+   Auth Auth // Authorization
+   Device Device // X-Dfe-Device-Id
+   Single bool
 }
 
-func (h Header) Set_Agent(head http.Header) {
-   var buf []byte
-   buf = append(buf, "Android-Finsky (sdk="...)
-   buf = strconv.AppendInt(buf, h.SDK, 10)
-   buf = append(buf, ",versionCode="...)
-   buf = strconv.AppendInt(buf, h.Version_Code, 10)
-   buf = append(buf, ')')
-   head.Set("User-Agent", string(buf))
-}
-
-func (h Header) Set_Auth(head http.Header) {
-   head.Set("Authorization", "Bearer " + h.Auth)
-}
-
-func (h Header) Set_Device(head http.Header) {
-   device := strconv.FormatUint(h.Device_ID, 16)
-   head.Set("X-DFE-Device-ID", device)
+func (h *Header) Open_Auth(name string) error {
+   query, err := os.ReadFile(name)
+   if err != nil {
+      return err
+   }
+   h.Auth.Values = parse_query(string(query))
+   return nil
 }
 
 // Purchase app. Only needs to be done once per Google account.
 func (h Header) Purchase(app string) error {
-   query := "doc=" + url.QueryEscape(app)
+   body := make(url.Values)
+   body.Set("doc", app)
    req, err := http.NewRequest(
       "POST", "https://android.clients.google.com/fdfe/purchase",
-      strings.NewReader(query),
+      strings.NewReader(body.Encode()),
    )
    if err != nil {
       return err
    }
-   h.SetAuth(req.Header)
-   h.SetDevice(req.Header)
+   h.Set_Auth(req.Header)
+   h.Set_Device(req.Header)
    req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-   Log_Level.Dump(req)
-   res, err := new(http.Transport).RoundTrip(req)
+   res, err := Client.Do(req)
    if err != nil {
       return err
    }
-   defer res.Body.Close()
-   if res.StatusCode != http.StatusOK {
-      return errors.New(res.Status)
+   return res.Body.Close()
+}
+
+func (h Header) Set_Agent(head http.Header) {
+   var b []byte
+   b = append(b, "Android-Finsky (sdk=9,versionCode="...)
+   if h.Single {
+      b = strconv.AppendInt(b, 8091_9999, 10)
+   } else {
+      b = strconv.AppendInt(b, 9999_9999, 10)
    }
+   b = append(b, ')')
+   head.Set("User-Agent", string(b))
+}
+
+func (h Header) Set_Auth(head http.Header) {
+   head.Set("Authorization", "Bearer " + h.Auth.Get_Auth())
+}
+
+func (h Header) Set_Device(head http.Header) error {
+   id, err := h.Device.ID()
+   if err != nil {
+      return err
+   }
+   head.Set("X-DFE-Device-ID", strconv.FormatUint(id, 16))
    return nil
-}
-
-func (t Token) Token() string {
-   return t.Get("Token")
-}
-
-// You can also use host "android.clients.google.com", but it also uses
-// TLS fingerprinting.
-func New_Token(email, password string) (*Token, error) {
-   body := url.Values{
-      "Email": {email},
-      "Passwd": {password},
-      "client_sig": {""},
-      "droidguard_results": {""},
-   }.Encode()
-   req, err := http.NewRequest(
-      "POST", "https://android.googleapis.com/auth", strings.NewReader(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-   hello, err := crypto.ParseJA3(crypto.AndroidAPI26)
-   if err != nil {
-      return nil, err
-   }
-   Log_Level.Dump(req)
-   res, err := crypto.Transport(hello).RoundTrip(req)
-   if err != nil {
-      return nil, err
-   }
-   defer res.Body.Close()
-   if res.StatusCode != http.StatusOK {
-      return nil, errors.New(res.Status)
-   }
-   var tok Token
-   tok.Values = net.NewValues()
-   if _, err := tok.ReadFrom(res.Body); err != nil {
-      return nil, err
-   }
-   return &tok, nil
-}
-
-type Token struct {
-   net.Values
 }

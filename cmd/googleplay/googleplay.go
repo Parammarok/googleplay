@@ -2,84 +2,49 @@ package main
 
 import (
    "fmt"
-   "github.com/89z/format"
+   "github.com/89z/rosso/os"
    "io"
-   "net/http"
-   "os"
    "time"
    gp "github.com/89z/googleplay"
 )
 
-func doHeader(dir, platform string, single bool) (*gp.Header, error) {
-   token, err := gp.OpenToken(dir + "/token.txt")
+func (f flags) do_auth(dir string) error {
+   auth, err := gp.New_Auth(f.email, f.password)
    if err != nil {
-      return nil, err
+      return err
    }
-   device, err := gp.OpenDevice(dir + "/" + platform + ".txt")
-   if err != nil {
-      return nil, err
-   }
-   id, err := device.ID()
-   if err != nil {
-      return nil, err
-   }
-   return token.Header(id, single)
+   return auth.Create(dir + "/auth.txt")
 }
 
-func doDevice(dir, platform string) error {
+func do_device(dir, platform string) error {
    device, err := gp.Phone.Checkin(platform)
    if err != nil {
       return err
    }
    fmt.Printf("Sleeping %v for server to process\n", gp.Sleep)
    time.Sleep(gp.Sleep)
-   file, err := format.Create(dir + "/" + platform + ".txt")
-   if err != nil {
-      return err
-   }
-   defer file.Close()
-   if _, err := device.WriteTo(file); err != nil {
-      return err
-   }
-   return nil
+   return device.Create(dir + "/" + platform + ".bin")
 }
 
-func doToken(dir, email, password string) error {
-   token, err := gp.NewToken(email, password)
+func (f flags) do_header(dir, platform string) (*gp.Header, error) {
+   var head gp.Header
+   err := head.Open_Auth(dir + "/auth.txt")
    if err != nil {
-      return err
+      return nil, err
    }
-   file, err := format.Create(dir + "/token.txt")
-   if err != nil {
-      return err
+   if err := head.Auth.Exchange(); err != nil {
+      return nil, err
    }
-   defer file.Close()
-   if _, err := token.WriteTo(file); err != nil {
-      return err
+   if err := head.Open_Device(dir + "/" + platform + ".bin"); err != nil {
+      return nil, err
    }
-   return nil
+   head.Single = f.single
+   return &head, nil
 }
 
-func doDetails(head *gp.Header, app string, parse bool) error {
-   detail, err := head.Details(app)
-   if err != nil {
-      return err
-   }
-   if parse {
-      date, err := detail.Time()
-      if err != nil {
-         return err
-      }
-      detail.UploadDate = date.String()
-   }
-   fmt.Println(detail)
-   return nil
-}
-
-func doDelivery(head *gp.Header, app string, ver uint64) error {
-   download := func(addr, name string) error {
-      fmt.Println("GET", addr)
-      res, err := http.Get(addr)
+func (f flags) do_delivery(head *gp.Header) error {
+   download := func(ref, name string) error {
+      res, err := gp.Client.Redirect(nil).Get(ref)
       if err != nil {
          return err
       }
@@ -89,27 +54,54 @@ func doDelivery(head *gp.Header, app string, ver uint64) error {
          return err
       }
       defer file.Close()
-      pro := format.ProgressBytes(file, res.ContentLength)
+      pro := os.Progress_Bytes(file, res.ContentLength)
       if _, err := io.Copy(pro, res.Body); err != nil {
          return err
       }
       return nil
    }
-   del, err := head.Delivery(app, ver)
+   del, err := head.Delivery(f.app, f.version)
    if err != nil {
       return err
    }
-   for _, split := range del.SplitDeliveryData {
-      err := download(split.DownloadURL, del.Split(split.ID))
+   file := gp.File{f.app, f.version}
+   for _, split := range del.Split_Data() {
+      ref, err := split.Download_URL()
       if err != nil {
          return err
       }
-   }
-   for _, file := range del.AdditionalFile {
-      err := download(file.DownloadURL, del.Additional(file.FileType))
+      id, err := split.ID()
       if err != nil {
          return err
       }
+      if err := download(ref, file.APK(id)); err != nil {
+         return err
+      }
    }
-   return download(del.DownloadURL, del.Download())
+   for _, add := range del.Additional_File() {
+      ref, err := add.Download_URL()
+      if err != nil {
+         return err
+      }
+      typ, err := add.File_Type()
+      if err != nil {
+         return err
+      }
+      if err := download(ref, file.OBB(typ)); err != nil {
+         return err
+      }
+   }
+   ref, err := del.Download_URL()
+   if err != nil {
+      return err
+   }
+   return download(ref, file.APK(""))
+}
+
+func (f flags) do_details(head *gp.Header) ([]byte, error) {
+   detail, err := head.Details(f.app)
+   if err != nil {
+      return nil, err
+   }
+   return detail.MarshalText()
 }
